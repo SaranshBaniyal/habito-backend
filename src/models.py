@@ -21,3 +21,9 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str
     username: str
+
+
+class GetHabitsResponse(BaseModel):
+    habit_id: str
+    habit_name: str
+    description: str

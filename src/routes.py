@@ -39,3 +39,15 @@ def user_signup(user: models.SignUpRequest):
 )
 def user_login(user: models.LoginRequest):
     return handler.user_login_endpoint(user)
+
+
+@router.get(
+    "/habits",
+    response_model=List[Optional[models.GetHabitsResponse]],
+    responses={
+        401: {"description": "Unauthorized"},
+        500: {"description": "Internal server error"},
+    },
+)
+def get_habits(token: str = Depends(oauth2_scheme)):
+    return handler.get_habits_endpoint(token)

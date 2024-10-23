@@ -104,3 +104,28 @@ def user_login_endpoint(user: models.LoginRequest):
     finally:
         if conn:
             db_instance.release_connection(conn)
+
+
+def get_habits_endpoint(token: str):
+    payload = utils.verify_decode_token(token=token)
+    try:
+        conn = db_instance.get_connection()
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute("SELECT habit_id, habit_name, description FROM habits;")
+            habits_data = cursor.fetchall()
+        
+        if habits_data:
+            return habits_data
+        
+        return []
+
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"500: Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    finally:
+        if conn:
+            db_instance.release_connection(conn)
