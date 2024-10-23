@@ -1,6 +1,6 @@
 from typing import Optional
 from pydantic import BaseModel
-from datetime import datetime
+import datetime
 
 
 class Response(BaseModel):
@@ -31,3 +31,12 @@ class GetHabitsResponse(BaseModel):
 
 class PostUserHabitRequest(BaseModel):
     habit_id: str
+
+
+class GetUserHabitsResponse(BaseModel):
+    user_habit_id: str
+    habit_id: str
+    start_date: datetime.date
+    current_streak: int
+    habit_name: str
+    description: str

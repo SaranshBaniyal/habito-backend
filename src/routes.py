@@ -64,3 +64,15 @@ def get_habits(token: str = Depends(oauth2_scheme)):
 )
 def post_user_habit(habit: models.PostUserHabitRequest, token: str = Depends(oauth2_scheme)):
     return handler.post_user_habit_endpoint(habit, token)
+
+
+@router.get(
+    "/user/habits",
+    response_model=List[Optional[models.GetUserHabitsResponse]],
+    responses={
+        401: {"description": "Unauthorized"},
+        500: {"description": "Internal server error"},
+    },
+)
+def get_user_habits(token: str = Depends(oauth2_scheme)):
+    return handler.get_user_habits_endpoint(token)

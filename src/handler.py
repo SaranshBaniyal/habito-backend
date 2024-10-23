@@ -169,3 +169,34 @@ def post_user_habit_endpoint(habit: models.PostUserHabitRequest, token: str):
         if conn:
             db_instance.release_connection(conn)
 
+
+
+def get_user_habits_endpoint(token: str):
+    payload = utils.verify_decode_token(token=token)
+    try:
+        conn = db_instance.get_connection()
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute("""
+                            SELECT uh.user_habit_id, uh.habit_id, uh.start_date,
+                            uh.current_streak, h.habit_name, h.description
+                            FROM user_habits uh
+                            JOIN habits h ON uh.habit_id = h.habit_id
+                            WHERE uh.user_id = %s;
+                        """, (payload["sub"],))
+            habits_data = cursor.fetchall()
+        
+            if habits_data:
+                return habits_data
+        
+        return []
+
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"500: Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    finally:
+        if conn:
+            db_instance.release_connection(conn)
