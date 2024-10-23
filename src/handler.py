@@ -3,12 +3,14 @@ import os
 import logging
 import psycopg2
 import datetime
-# from passlib.context import CryptContext
+import requests
 from psycopg2.extras import RealDictCursor
 from psycopg2 import errors 
 
-from fastapi import Depends, HTTPException, Response, Request
+from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import File, UploadFile, Form
+from fastapi.responses import JSONResponse
 
 import models
 import utils
@@ -18,6 +20,11 @@ from connection import Database
 db_instance = Database()
 
 logger = logging.getLogger()
+
+BLIP_API_URL = os.getenv("BLIP_API_URL")
+BLIP_TOKEN = os.getenv("BLIP_TOKEN")
+
+blip_headers = {"Authorization": f"Bearer {BLIP_TOKEN}"}
 
 
 def token_endpoint(request_form: OAuth2PasswordRequestForm = Depends()):
@@ -200,3 +207,64 @@ def get_user_habits_endpoint(token: str):
     finally:
         if conn:
             db_instance.release_connection(conn)
+
+
+async def post_user_habit_log_endpoint(user_habit_id: str, image_file: UploadFile, token: str):
+    payload = utils.verify_decode_token(token=token)
+    try:
+        # Read the uploaded file directly without saving it to disk
+        file_content = await image_file.read()
+        
+        # Query the Hugging Face API directly with the file content
+        blip_response = requests.post(BLIP_API_URL, headers=blip_headers, data=file_content)
+        caption = blip_response[0]['generated_text']
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"message": "Error processing the image with Hugging Face API", "error": str(e)},
+        )
+
+    # Return the result with the caption
+    return {
+        "user_habit_id": user_habit_id,
+        "filename": image_file.filename,
+        "content_type": image_file.content_type,
+        "generated_caption": caption
+    }
+
+    # try:
+    #     conn = db_instance.get_connection()
+
+    #     current_date = datetime.date.today()
+    #     user_habit_id = str(uuid.uuid4())
+
+    #     with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+    #         cursor.execute("INSERT INTO user_habits VALUES (%s, %s, %s, %s);",
+    #             (user_habit_id, payload["sub"], habit.habit_id, current_date))
+        
+    #     conn.commit()
+
+    #     return {
+    #         "detail": "Habit added successfully"
+    #     }
+
+    # except errors.UniqueViolation:
+    #     # Handle the unique constraint violation for duplicate entries
+    #     if conn:
+    #         conn.rollback()
+    #     logger.error(f"409: Habit already exists for current user")
+    #     raise HTTPException(
+    #         status_code=409,
+    #         detail=f"You have already added this habit"
+    #     )
+
+    # except psycopg2.Error as e:
+    #     if conn:
+    #         conn.rollback()
+    #     logger.error(f"500: Internal server error: {str(e)}")
+    #     raise HTTPException(status_code=500, detail="Internal server error")
+
+    # finally:
+    #     if conn:
+    #         db_instance.release_connection(conn)

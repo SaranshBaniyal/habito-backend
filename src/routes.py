@@ -2,10 +2,9 @@ import models
 import handler
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Response, Request
+from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi import Request, Form
-from fastapi.responses import RedirectResponse
+from fastapi import File, UploadFile, Form
 
 
 router = APIRouter()
@@ -76,3 +75,17 @@ def post_user_habit(habit: models.PostUserHabitRequest, token: str = Depends(oau
 )
 def get_user_habits(token: str = Depends(oauth2_scheme)):
     return handler.get_user_habits_endpoint(token)
+
+
+@router.post(
+    "/user/habit/log",
+    # response_model=models.Response,
+    responses={
+        401: {"description": "Unauthorized"},
+        409: {"description": "You have already logged this habit for today"},
+        400: {"description": "Habit was not verified due to incorrect image"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def post_user_habit_log(user_habit_id: str = Form(...), image_file: UploadFile = File(...), token: str = Depends(oauth2_scheme)):
+    return await handler.post_user_habit_log_endpoint(user_habit_id, image_file, token)
