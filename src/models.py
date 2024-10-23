@@ -40,3 +40,8 @@ class GetUserHabitsResponse(BaseModel):
     current_streak: int
     habit_name: str
     description: str
+
+
+class GetLeaderboardResponse(BaseModel):
+    username: str
+    current_streak: int

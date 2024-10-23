@@ -322,3 +322,35 @@ async def post_user_habit_log_endpoint(user_habit_id: str, image_file: UploadFil
     finally:
         if conn:
             db_instance.release_connection(conn)
+
+
+def get_leaderboard_endpoint(habit_id:str, token: str):
+    payload = utils.verify_decode_token(token=token)
+    try:
+        conn = db_instance.get_connection()
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute("""
+                            SELECT u.username, uh.current_streak
+                            FROM user_habits uh
+                            JOIN users u ON uh.user_id = u.user_id
+                            WHERE uh.habit_id = %s
+                            ORDER BY current_streak DESC
+                            LIMIT 10;
+                        """, (habit_id,))
+            leaderboard_data = cursor.fetchall()
+        
+            if leaderboard_data:
+                return leaderboard_data
+        
+        raise HTTPException(status_code=404, detail="Habit's leaderboard does not exist")
+
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"500: Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    finally:
+        if conn:
+            db_instance.release_connection(conn)

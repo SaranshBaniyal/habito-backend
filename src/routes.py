@@ -89,3 +89,16 @@ def get_user_habits(token: str = Depends(oauth2_scheme)):
 )
 async def post_user_habit_log(user_habit_id: str = Form(...), image_file: UploadFile = File(...), token: str = Depends(oauth2_scheme)):
     return await handler.post_user_habit_log_endpoint(user_habit_id, image_file, token)
+
+
+@router.get(
+    "/leaderboard",
+    response_model=List[Optional[models.GetLeaderboardResponse]],
+    responses={
+        401: {"description": "Unauthorized"},
+        404: {"description": "Habit's leaderboard does not exist"},
+        500: {"description": "Internal server error"},
+    },
+)
+def get_leaderboard(habit_id: str, token: str = Depends(oauth2_scheme)):
+    return handler.get_leaderboard_endpoint(habit_id, token)
