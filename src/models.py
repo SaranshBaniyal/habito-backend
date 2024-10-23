@@ -27,3 +27,7 @@ class GetHabitsResponse(BaseModel):
     habit_id: str
     habit_name: str
     description: str
+
+
+class PostUserHabitRequest(BaseModel):
+    habit_id: str

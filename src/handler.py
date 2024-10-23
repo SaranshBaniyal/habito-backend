@@ -2,7 +2,7 @@ import uuid
 import os
 import logging
 import psycopg2
-from datetime import datetime
+import datetime
 # from passlib.context import CryptContext
 from psycopg2.extras import RealDictCursor
 from psycopg2 import errors 
@@ -129,3 +129,43 @@ def get_habits_endpoint(token: str):
     finally:
         if conn:
             db_instance.release_connection(conn)
+
+
+def post_user_habit_endpoint(habit: models.PostUserHabitRequest, token: str):
+    payload = utils.verify_decode_token(token=token)
+    try:
+        conn = db_instance.get_connection()
+
+        current_date = datetime.date.today()
+        user_habit_id = str(uuid.uuid4())
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute("INSERT INTO user_habits VALUES (%s, %s, %s, %s);",
+                (user_habit_id, payload["sub"], habit.habit_id, current_date))
+        
+        conn.commit()
+
+        return {
+            "detail": "Habit added successfully"
+        }
+
+    except errors.UniqueViolation:
+        # Handle the unique constraint violation for duplicate entries
+        if conn:
+            conn.rollback()
+        logger.error(f"409: Habit already exists for current user")
+        raise HTTPException(
+            status_code=409,
+            detail=f"You have already added this habit"
+        )
+
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"500: Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    finally:
+        if conn:
+            db_instance.release_connection(conn)
+

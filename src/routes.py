@@ -51,3 +51,16 @@ def user_login(user: models.LoginRequest):
 )
 def get_habits(token: str = Depends(oauth2_scheme)):
     return handler.get_habits_endpoint(token)
+
+
+@router.post(
+    "/user/habit",
+    response_model=models.Response,
+    responses={
+        401: {"description": "Unauthorized"},
+        409: {"description": "You have already added this habit"},
+        500: {"description": "Internal server error"},
+    },
+)
+def post_user_habit(habit: models.PostUserHabitRequest, token: str = Depends(oauth2_scheme)):
+    return handler.post_user_habit_endpoint(habit, token)
