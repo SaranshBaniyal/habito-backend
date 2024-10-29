@@ -4,6 +4,7 @@ import logging
 import psycopg2
 import datetime
 import httpx
+import asyncio
 from psycopg2.extras import RealDictCursor
 from psycopg2 import errors 
 from sentence_transformers import SentenceTransformer, util
@@ -23,9 +24,28 @@ db_instance = Database()
 logger = logging.getLogger()
 
 BLIP_API_URL = os.getenv("BLIP_API_URL")
-BLIP_TOKEN = os.getenv("BLIP_TOKEN")
 
-blip_headers = {"Authorization": f"Bearer {BLIP_TOKEN}"}
+tokens = [
+    os.getenv("HUGGINGFACE_TOKEN_1"),
+    os.getenv("HUGGINGFACE_TOKEN_2"),
+    os.getenv("HUGGINGFACE_TOKEN_3"),
+    os.getenv("HUGGINGFACE_TOKEN_4"),
+    os.getenv("HUGGINGFACE_TOKEN_5"),
+    os.getenv("HUGGINGFACE_TOKEN_6")
+]
+
+# Shared index counter for token rotation
+token_index = 0
+
+# Lock to prevent race conditions in async environment
+token_lock = asyncio.Lock()
+
+async def get_next_token():
+    global token_index
+    async with token_lock:
+        token = tokens[token_index]
+        token_index = (token_index + 1) % len(tokens)  # Rotate token
+    return token
 
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
@@ -214,6 +234,10 @@ def get_user_habits_endpoint(token: str):
 async def post_user_habit_log_endpoint(user_habit_id: str, image_file: UploadFile, token: str):
     payload = utils.verify_decode_token(token=token)
     current_date = datetime.date.today()
+
+    hf_token = await get_next_token()
+
+    blip_headers = {"Authorization": f"Bearer {hf_token}"}
 
     try:
         # Read the uploaded file directly without saving it to disk
