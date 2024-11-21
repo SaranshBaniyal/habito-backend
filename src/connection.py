@@ -12,11 +12,11 @@ load_dotenv()
 
 class Database:
     def __init__(self):
-        self.database_name = os.getenv("PG_DB")
-        self.user_name = os.getenv("PG_USER")
-        self.password = os.getenv("PG_PW")
-        self.host = os.getenv("PG_HOST")
-        self.port = os.getenv("PG_PORT")
+        self.database_name = os.getenv("POSTGRES_DB")
+        self.user_name = os.getenv("POSTGRES_USER")
+        self.password = os.getenv("POSTGRES_PASSWORD")
+        self.host = os.getenv("POSTGRES_HOST")
+        self.port = os.getenv("POSTGRES_PORT")
 
         try:
             # Create a connection pool
