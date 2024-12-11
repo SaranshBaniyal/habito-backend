@@ -102,3 +102,15 @@ async def post_user_habit_log(user_habit_id: str = Form(...), image_file: Upload
 )
 def get_leaderboard(habit_id: str, token: str = Depends(oauth2_scheme)):
     return handler.get_leaderboard_endpoint(habit_id, token)
+
+
+@router.get(
+    "/user/streaks",
+    response_model=List[Optional[models.GetStreakResponse]],
+    responses={
+        401: {"description": "Unauthorized"},
+        500: {"description": "Internal server error"},
+    },
+)
+def get_user_streaks(token: str = Depends(oauth2_scheme)):
+    return handler.get_user_streaks_endpoint(token)

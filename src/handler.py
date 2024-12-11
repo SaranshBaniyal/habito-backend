@@ -378,3 +378,67 @@ def get_leaderboard_endpoint(habit_id:str, token: str):
     finally:
         if conn:
             db_instance.release_connection(conn)
+
+
+def get_user_streaks_endpoint(token):
+    payload = utils.verify_decode_token(token=token)
+    user_id = payload["sub"]
+    try:
+        today = datetime.date.today()
+        start_of_week = today - datetime.timedelta(days=today.weekday())  # Monday
+        week_days = [(start_of_week + datetime.timedelta(days=i)) for i in range(7)]  # Monday to Sunday
+        week_day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        conn = db_instance.get_connection()
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute("""
+                            SELECT uh.user_habit_id, h.habit_name
+                            FROM user_habits uh
+                            JOIN habits h ON uh.habit_id = h.habit_id
+                            WHERE uh.user_id = %s;
+                           """, (user_id,))
+            user_habits = cursor.fetchall()
+            user_habit_map = {habit["user_habit_id"]: habit["habit_name"] for habit in user_habits}
+            user_habit_ids = list(user_habit_map.keys())
+
+            if not user_habit_ids:
+                return []
+            
+            cursor.execute("""
+                            SELECT user_habit_id, performed_at
+                            FROM habit_logs
+                            WHERE user_habit_id = ANY(%s::uuid[])
+                            AND performed_at BETWEEN %s AND %s;
+                           """, (user_habit_ids, start_of_week, week_days[-1]))
+            logs = cursor.fetchall()
+
+        
+        # Organize logs by user_habit_id
+        logs_by_habit = {}
+        for log in logs:
+            habit_id = log["user_habit_id"]
+            performed_at = log["performed_at"]
+            if habit_id not in logs_by_habit:
+                logs_by_habit[habit_id] = set()
+            logs_by_habit[habit_id].add(performed_at)
+
+        # Prepare the day-wise breakdown with day names
+        result = []
+        for habit_id, habit_name in user_habit_map.items():
+            breakdown = {
+                week_day_names[i]: (week_days[i] in logs_by_habit.get(habit_id, set()))
+                for i in range(len(week_days))
+            }
+            result.append({"habit_name": habit_name, "breakdown": breakdown})
+
+        return result
+        
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"500: Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    finally:
+        if conn:
+            db_instance.release_connection(conn)

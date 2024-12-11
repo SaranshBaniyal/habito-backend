@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict
 from pydantic import BaseModel
 import datetime
 
@@ -45,3 +45,8 @@ class GetUserHabitsResponse(BaseModel):
 class GetLeaderboardResponse(BaseModel):
     username: str
     current_streak: int
+
+
+class GetStreakResponse(BaseModel):
+    habit_name: str
+    breakdown: Dict[str, bool] 
