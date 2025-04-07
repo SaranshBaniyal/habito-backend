@@ -114,3 +114,27 @@ def get_leaderboard(habit_id: str, token: str = Depends(oauth2_scheme)):
 )
 def get_user_streaks(token: str = Depends(oauth2_scheme)):
     return handler.get_user_streaks_endpoint(token)
+
+@router.patch("/user/location",
+    response_model=models.Response,
+    responses={
+        401: {"description": "Unauthorized"},
+        500: {"description": "Internal server error"},
+    }
+)
+def update_user_location(loc: models.UpdateLocationRequest, token: str = Depends(oauth2_scheme)):
+    return handler.update_user_location_endpoint(loc, token)
+
+
+# TODO: Modify this to be habit specific
+# TODO: Consider making this radius bound, if required
+@router.get("/leaderboard/nearby",
+    response_model=List[Optional[models.GetLeaderboardNearbyResponse]],
+    responses={
+        401: {"description": "Unauthorized"},
+        404: {"description": "Habit's leaderboard does not exist"},
+        500: {"description": "Internal server error"},
+    },
+)
+def get_leaderboard_nearby(habit_id: str, token: str = Depends(oauth2_scheme)):
+    return handler.get_leaderboard_nearby_endpoint(habit_id, token)

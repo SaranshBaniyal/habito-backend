@@ -40,12 +40,19 @@ pip install -r requirements.txt
 ```
 
 #### 4. Setup the Database
-Ensure you have a PostgreSQL server running and accessible. Create the required tables using the .sql files in the db_schemas directory:
+Ensure you have a PostgreSQL server running and accessible along with PostGIS. Create the required tables using the .sql files in the db_schemas directory:
 
 ```bash
 psql -U <your_username> -d <your_database> -f db_schemas/<schema_file>.sql
 ```
 Repeat for each .sql file in the db_schemas directory.
+
+#### Note: 
+To install PostGIS in Ubuntu, first add sources from https://wiki.postgresql.org/wiki/Apt and then run:
+
+```bash
+sudo apt-get install postgresql-<VERSION_NUMBER>-postgis-3
+```
 
 #### 5. Configure Environment Variables
 Create a .env file in the project root based on the .env-example file. Modify it to include your specific database credentials and settings:

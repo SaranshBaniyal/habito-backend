@@ -50,3 +50,14 @@ class GetLeaderboardResponse(BaseModel):
 class GetStreakResponse(BaseModel):
     habit_name: str
     breakdown: Dict[str, bool] 
+
+
+class UpdateLocationRequest(BaseModel):
+    latitude: float
+    longitude: float
+
+
+class GetLeaderboardNearbyResponse(BaseModel):
+    username: str
+    current_streak: int
+    distance: float

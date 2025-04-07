@@ -442,3 +442,80 @@ def get_user_streaks_endpoint(token):
     finally:
         if conn:
             db_instance.release_connection(conn)
+
+def update_user_location_endpoint(loc: models.UpdateLocationRequest, token: str):
+    payload = utils.verify_decode_token(token=token)
+    user_id = payload["sub"]
+
+    point = f"SRID=4326;POINT({loc.longitude} {loc.latitude})"
+
+    try:
+        conn = db_instance.get_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                "UPDATE users SET location = ST_GeomFromText(%s, 4326) WHERE user_id = %s",
+                (point, user_id),
+            )
+            conn.commit()
+        return {"detail": "User location updated"}
+
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"500: Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    finally:
+        if conn:
+            db_instance.release_connection(conn)
+
+
+def get_leaderboard_nearby_endpoint(habit_id: str, token: str):
+    payload = utils.verify_decode_token(token=token)
+    user_id = payload["sub"]
+    try:
+        conn = db_instance.get_connection()
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute("""
+                SELECT ST_X(location) AS lng, ST_Y(location) AS lat
+                FROM users
+                WHERE user_id = %s
+            """, (user_id,))
+            user_loc = cursor.fetchone()
+
+            if not user_loc or None in user_loc:
+                raise HTTPException(status_code=400, detail="User location is not set.")
+            
+            lng = user_loc["lng"] # X = lng,
+            lat = user_loc["lat"] # Y = lat
+
+            # Query nearby users (excluding the current user)
+            cursor.execute("""
+                SELECT u.username, uh.current_streak,
+                ST_Distance(u.location::geography,
+                        ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography) AS distance
+                FROM users u
+                JOIN user_habits uh
+                ON u.user_id=uh.user_id
+                WHERE uh.habit_id = %s
+                AND uh.user_id != %s 
+                AND location IS NOT NULL
+                ORDER BY distance
+                LIMIT 5
+            """, (lng, lat, habit_id, user_id))
+
+            results = cursor.fetchall()
+            return results
+        
+        raise HTTPException(status_code=404, detail="Habit's leaderboard does not exist")
+
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"500: Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    finally:
+        if conn:
+            db_instance.release_connection(conn)
