@@ -2,7 +2,7 @@ import models
 import handler
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi import File, UploadFile, Form
 
@@ -87,8 +87,8 @@ def get_user_habits(token: str = Depends(oauth2_scheme)):
         500: {"description": "Internal server error"},
     },
 )
-async def post_user_habit_log(user_habit_id: str = Form(...), image_file: UploadFile = File(...), token: str = Depends(oauth2_scheme)):
-    return await handler.post_user_habit_log_endpoint(user_habit_id, image_file, token)
+async def post_user_habit_log(request: Request, user_habit_id: str = Form(...), image_file: UploadFile = File(...), token: str = Depends(oauth2_scheme)):
+    return await handler.post_user_habit_log_endpoint(request, user_habit_id, image_file, token)
 
 
 @router.get(

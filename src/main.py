@@ -7,6 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routes import router
 
+from transformers import BlipProcessor, BlipForConditionalGeneration
+import torch
+
 
 logger = logging.getLogger()
 
@@ -22,6 +25,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_event():
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+    blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(device)
+
+    # Store in FastAPI app state
+    app.state.blip_model = blip_model
+    app.state.blip_processor = processor
+    app.state.device = device
 
 @app.get("/")
 def root():

@@ -9,7 +9,7 @@ from psycopg2.extras import RealDictCursor
 from psycopg2 import errors 
 from sentence_transformers import SentenceTransformer, util
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import File, UploadFile, Form
 from fastapi.responses import JSONResponse
@@ -18,6 +18,8 @@ import models
 import utils
 from connection import Database
 
+from PIL import Image
+from io import BytesIO
 
 db_instance = Database()
 
@@ -231,29 +233,24 @@ def get_user_habits_endpoint(token: str):
             db_instance.release_connection(conn)
 
 
-async def post_user_habit_log_endpoint(user_habit_id: str, image_file: UploadFile, token: str):
+async def post_user_habit_log_endpoint(request: Request, user_habit_id: str, image_file: UploadFile, token: str):
     payload = utils.verify_decode_token(token=token)
     current_date = datetime.date.today()
 
-    hf_token = await get_next_token()
-
-    blip_headers = {"Authorization": f"Bearer {hf_token}"}
+    blip_model = request.app.state.blip_model
+    processor = request.app.state.blip_processor
+    device = request.app.state.device
 
     try:
-        # Read the uploaded file directly without saving it to disk
         file_content = await image_file.read()
+        image = Image.open(BytesIO(file_content)).convert("RGB")
 
-        # Use httpx for making asynchronous requests
-        async with httpx.AsyncClient() as client:
-            blip_response = await client.post(BLIP_API_URL, headers=blip_headers, data=file_content)
-            blip_response.raise_for_status()  # Check for errors
-            caption = blip_response.json()[0]['generated_text']
-
-    except httpx.HTTPStatusError as e:
-        return JSONResponse(
-            status_code=500,
-            content={"message": "Error processing the image with Hugging Face API", "error": str(e)},
-        )
+        inputs = processor(images=image, return_tensors="pt").to(device)
+        output = blip_model.generate(**inputs)
+        caption = processor.decode(output[0], skip_special_tokens=True)
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"BLIP captioning error: {str(e)}")
 
     try:
         conn = db_instance.get_connection()
