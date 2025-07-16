@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from routes import router
 
 from transformers import BlipProcessor, BlipForConditionalGeneration
+from sentence_transformers import SentenceTransformer
 import torch
 
 
@@ -33,9 +34,12 @@ async def startup_event():
     processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
     blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(device)
 
+    sentence_model = SentenceTransformer('all-MiniLM-L6-v2', device=device)
+
     # Store in FastAPI app state
     app.state.blip_model = blip_model
     app.state.blip_processor = processor
+    app.state.sentence_model = sentence_model
     app.state.device = device
 
 @app.get("/")

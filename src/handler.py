@@ -1,18 +1,14 @@
 import uuid
-import os
 import logging
 import psycopg2
 import datetime
-import httpx
-import asyncio
 from psycopg2.extras import RealDictCursor
 from psycopg2 import errors 
-from sentence_transformers import SentenceTransformer, util
+from sentence_transformers import util
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi import File, UploadFile, Form
-from fastapi.responses import JSONResponse
+from fastapi import UploadFile
 
 import models
 import utils
@@ -25,31 +21,6 @@ db_instance = Database()
 
 logger = logging.getLogger()
 
-BLIP_API_URL = os.getenv("BLIP_API_URL")
-
-tokens = [
-    os.getenv("HUGGINGFACE_TOKEN_1"),
-    os.getenv("HUGGINGFACE_TOKEN_2"),
-    os.getenv("HUGGINGFACE_TOKEN_3"),
-    os.getenv("HUGGINGFACE_TOKEN_4"),
-    os.getenv("HUGGINGFACE_TOKEN_5"),
-    os.getenv("HUGGINGFACE_TOKEN_6")
-]
-
-# Shared index counter for token rotation
-token_index = 0
-
-# Lock to prevent race conditions in async environment
-token_lock = asyncio.Lock()
-
-async def get_next_token():
-    global token_index
-    async with token_lock:
-        token = tokens[token_index]
-        token_index = (token_index + 1) % len(tokens)  # Rotate token
-    return token
-
-model = SentenceTransformer('all-MiniLM-L6-v2')
 
 def token_endpoint(request_form: OAuth2PasswordRequestForm = Depends()):
     try:
@@ -237,6 +208,7 @@ async def post_user_habit_log_endpoint(request: Request, user_habit_id: str, ima
     payload = utils.verify_decode_token(token=token)
     current_date = datetime.date.today()
 
+    sentence_model = request.app.state.sentence_model
     blip_model = request.app.state.blip_model
     processor = request.app.state.blip_processor
     device = request.app.state.device
@@ -265,7 +237,7 @@ async def post_user_habit_log_endpoint(request: Request, user_habit_id: str, ima
                                 );""", (user_habit_id,))
             embeddings = cursor.fetchone()["embeddings"]
 
-        caption_embedding = model.encode(caption)
+        caption_embedding = sentence_model.encode(caption)
 
         # Compute cosine similarity
         similarities = util.cos_sim(caption_embedding, embeddings)
